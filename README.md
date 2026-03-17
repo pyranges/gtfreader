@@ -2,20 +2,11 @@
 
 `gtfread` is a small package for parsing and reading GTF files into pandas dataframes.
 
-## Layout
-
-- `gtfread/_parser.pyx`: the optional compiled attribute parser
-- `gtfread/readers.py`: the serial dataframe reader API
-- `tests/test_parser.py`: parser smoke test
-- `tests/test_readers.py`: GTF reader tests
-
 ## Install
 
 ```bash
 python -m pip install -e .
 ```
-
-That uses `pyproject.toml` to install the build requirements and compile the Cython extension.
 
 ## Usage
 
@@ -48,18 +39,14 @@ attribute_lines = pd.read_csv(
 compiled_columns = parse_chunk_columns(attribute_lines)
 ```
 
-## Build a wheel
+## Build
 
 ```bash
 python -m build
 ```
 
-## In-place extension build
+## Test
 
 ```bash
-python setup.py build_ext --inplace
+python -m pytest -q
 ```
-
-## Do you need `setup.py`?
-
-No. A modern project can build a Cython extension from `pyproject.toml` alone if you declare the extension there and use a build backend that supports it. `setup.py` is still useful when you want `cythonize(...)` directly, custom build logic, or more control over compiler options. If the compiled extension is unavailable, the pure Python reader still works.
