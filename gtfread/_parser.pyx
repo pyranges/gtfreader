@@ -257,20 +257,29 @@ def parse_chunk_columns(lines):
                 pos += 1
             key_end = pos
 
-            while pos < m and s[pos] != '"':
+            while pos < m and (s[pos] == ' ' or s[pos] == '\t'):
                 pos += 1
             if pos >= m:
                 break
 
-            val_start = pos + 1
-            pos += 1
-
-            while pos < m and s[pos] != '"':
+            if s[pos] == '"':
+                val_start = pos + 1
                 pos += 1
-            if pos >= m:
-                break
 
-            val_end = pos
+                while pos < m and s[pos] != '"':
+                    pos += 1
+                if pos >= m:
+                    break
+
+                val_end = pos
+            else:
+                val_start = pos
+                while pos < m and s[pos] != ';':
+                    pos += 1
+                val_end = pos
+                while val_end > val_start and (s[val_end - 1] == ' ' or s[val_end - 1] == '\t'):
+                    val_end -= 1
+
             value = s[val_start:val_end]
 
             code = _key_code(s, key_start, key_end)

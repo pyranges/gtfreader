@@ -1,10 +1,12 @@
 from pathlib import Path
 
 import pandas as pd
+import pytest
 from pandas.testing import assert_frame_equal
 
 from gtfread import (
     find_first_data_line_index,
+    parse_kv_fields,
     read_gtf,
     read_gtf_full,
     read_gtf_full_python,
@@ -26,6 +28,23 @@ def _write_temp_gtf(tmp_path: Path, contents: str) -> Path:
     path = tmp_path / "test.gtf"
     path.write_text(contents)
     return path
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        (
+            'gene_id "G1"; note "contains; semicolon"; exon_number "1";',
+            [("gene_id", "G1"), ("note", "contains; semicolon"), ("exon_number", "1")],
+        ),
+        (
+            'gene_id "G2"; transcript_id "T2"; exon_number 2; level 3;',
+            [("gene_id", "G2"), ("transcript_id", "T2"), ("exon_number", "2"), ("level", "3")],
+        ),
+    ],
+)
+def test_parse_kv_fields_supports_gtf_format_variants(line: str, expected: list[tuple[str, str]]):
+    assert parse_kv_fields(line) == expected
 
 
 def test_find_first_data_line_index_skips_comments(tmp_path: Path):
@@ -55,6 +74,50 @@ def test_read_gtf_parses_semicolons_inside_quoted_attributes(tmp_path: Path):
     assert row["product"] == "protein adenylyltransferase SelO, mitochondrial"
     assert row["exon_number"] == "1"
     assert row["Start"] == 20486312
+
+
+def test_read_gtf_supports_unquoted_attribute_values(tmp_path: Path):
+    path = _write_temp_gtf(
+        tmp_path,
+        "chr1\tensembl_havana\texon\t3069203\t3069296\t.\t+\t.\t"
+        'gene_id "ENSG00000142611.17"; transcript_id "ENST00000270722.10"; '
+        'gene_type "protein_coding"; gene_name "PRDM16"; transcript_type "protein_coding"; '
+        'transcript_name "PRDM16-201"; exon_number 1; exon_id "ENSE00003850248.1"; '
+        'tag "MANE_Select"; protein_id "ENSP00000270722.5"; db_xref "RefSeq:NM_022114.4";\n',
+    )
+
+    compiled = _normalize_frame_for_compare(read_gtf(path))
+    python = _normalize_frame_for_compare(read_gtf_python(path))
+
+    assert compiled.iloc[0]["exon_number"] == "1"
+    assert python.iloc[0]["exon_number"] == "1"
+    assert compiled.iloc[0]["protein_id"] == "ENSP00000270722.5"
+    assert python.iloc[0]["protein_id"] == "ENSP00000270722.5"
+    assert compiled.iloc[0]["gene_id"] == python.iloc[0]["gene_id"]
+    assert compiled.iloc[0]["transcript_id"] == python.iloc[0]["transcript_id"]
+    assert compiled.iloc[0]["exon_id"] == python.iloc[0]["exon_id"]
+
+
+@pytest.mark.parametrize("reader", [read_gtf, read_gtf_python], ids=["default", "python"])
+def test_full_readers_support_mixed_attribute_formats(tmp_path: Path, reader):
+    path = _write_temp_gtf(
+        tmp_path,
+        "# header\n"
+        "chr1\tRefSeq\tCDS\t20486313\t20486315\t.\t+\t0\t"
+        'gene_id "G1"; transcript_id "T1"; note "contains; semicolon"; exon_number "1"; product "Protein 1";\n'
+        "chr1\tensembl_havana\texon\t3069203\t3069296\t.\t+\t.\t"
+        'gene_id "G2"; transcript_id "T2"; transcript_name "TX2"; exon_number 2; exon_id "EX2"; level 3;\n',
+    )
+
+    result = _normalize_frame_for_compare(reader(path))
+
+    assert list(result["gene_id"]) == ["G1", "G2"]
+    assert list(result["transcript_id"]) == ["T1", "T2"]
+    assert result.iloc[0]["note"] == "contains; semicolon"
+    assert result.iloc[0]["exon_number"] == "1"
+    assert result.iloc[1]["exon_number"] == "2"
+    assert result.iloc[1]["level"] == "3"
+    assert result.iloc[1]["exon_id"] == "EX2"
 
 
 def test_read_gtf_duplicate_attr_keeps_all_values(tmp_path: Path):
@@ -116,6 +179,27 @@ def test_read_gtf_restricted_returns_core_columns(tmp_path: Path):
     ]
     assert result.iloc[0]["Start"] == 12009
     assert result.iloc[0]["transcript_id"] == "ENST1"
+
+
+@pytest.mark.parametrize(
+    "reader",
+    [read_gtf_restricted, read_gtf_restricted_python],
+    ids=["default", "python"],
+)
+def test_restricted_readers_support_unquoted_values(tmp_path: Path, reader):
+    path = _write_temp_gtf(
+        tmp_path,
+        "# header\n"
+        'chr1\tensembl_havana\texon\t3069203\t3069296\t.\t+\t.\tgene_id "G1"; transcript_id "T1"; exon_number 4; exon_id "EX4";\n',
+    )
+
+    skiprows = find_first_data_line_index(path)
+    result = _normalize_frame_for_compare(reader(path, skiprows=skiprows))
+
+    assert result.iloc[0]["gene_id"] == "G1"
+    assert result.iloc[0]["transcript_id"] == "T1"
+    assert result.iloc[0]["exon_number"] == "4"
+    assert result.iloc[0]["exon_id"] == "EX4"
 
 
 def test_read_gtf_python_matches_compiled_reader(tmp_path: Path):

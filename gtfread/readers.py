@@ -41,9 +41,49 @@ def find_first_data_line_index(file_path: str | Path) -> int:
 
 
 def parse_kv_fields(line: str) -> list[tuple[str, str]]:
-    """Parse a GTF attribute string while preserving semicolons inside quoted values."""
-    parts = line.split('"')
-    return [(parts[i - 1].rsplit(";", 1)[-1].strip(), parts[i]) for i in range(1, len(parts), 2)]
+    """Parse a GTF attribute string with quoted or unquoted values."""
+    fields: list[tuple[str, str]] = []
+    n = len(line)
+    pos = 0
+
+    while pos < n:
+        while pos < n and line[pos] in " \t;":
+            pos += 1
+        if pos >= n:
+            break
+
+        key_start = pos
+        while pos < n and line[pos] not in " \t;":
+            pos += 1
+        key = line[key_start:pos]
+
+        while pos < n and line[pos] in " \t":
+            pos += 1
+        if pos >= n:
+            break
+
+        if line[pos] == '"':
+            pos += 1
+            value_start = pos
+            while pos < n and line[pos] != '"':
+                pos += 1
+            value = line[value_start:pos]
+            if pos < n and line[pos] == '"':
+                pos += 1
+        else:
+            value_start = pos
+            while pos < n and line[pos] != ';':
+                pos += 1
+            value = line[value_start:pos].strip()
+
+        fields.append((key, value))
+
+        while pos < n and line[pos] != ';':
+            pos += 1
+        if pos < n and line[pos] == ';':
+            pos += 1
+
+    return fields
 
 
 def to_rows(attribute_column: pd.Series, *, ignore_bad: bool = False) -> pd.DataFrame:
