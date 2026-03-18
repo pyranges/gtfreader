@@ -25,8 +25,14 @@ def test_known_and_dynamic_columns_are_parsed():
     assert columns["exon_number"] == ["1", None]
     assert columns["custom_key"] == ["custom", None]
     assert columns["gene_name"][0] is columns["gene_name"][1]
-    assert columns["gene_type"][0] is columns["gene_type"][1]
-    assert columns["level"][0] is columns["level"][1]
+    assert columns["gene_type"] == ["protein_coding", "protein_coding"]
+    assert columns["level"] == ["2", "2"]
+
+
+def test_compiled_parser_omits_unseen_fast_path_columns():
+    columns = parse_chunk_columns(['gene_id "GENE1"; transcript_id "TX1";'])
+
+    assert set(columns) == {"gene_id", "transcript_id"}
 
 
 def test_compiled_parser_supports_semicolons_in_quotes_and_unquoted_values():

@@ -11,8 +11,6 @@ from gtfreader import (
     read_gtf_full,
     read_gtf_full_python,
     read_gtf_python,
-    read_gtf_restricted,
-    read_gtf_restricted_python,
 )
 
 
@@ -170,15 +168,14 @@ def test_read_gtf_full_multiple_chunks_match(tmp_path: Path):
     assert_frame_equal(chunked, unchunked, check_dtype=False)
 
 
-def test_read_gtf_restricted_returns_core_columns(tmp_path: Path):
+def test_read_gtf_omits_unseen_fast_path_columns(tmp_path: Path):
     path = _write_temp_gtf(
         tmp_path,
         "# header\n"
-        'chr1\thavana\texon\t12010\t12057\t.\t+\t.\tgene_id "ENSG1"; transcript_id "ENST1"; exon_number "1"; exon_id "ENSE1";\n',
+        'chr1\thavana\tgene\t12010\t12057\t.\t+\t.\tgene_id "ENSG1"; gene_name "DDX11L1";\n',
     )
 
-    skiprows = find_first_data_line_index(path)
-    result = read_gtf_restricted(path, skiprows=skiprows)
+    result = read_gtf(path)
 
     assert list(result.columns) == [
         "Chromosome",
@@ -190,33 +187,10 @@ def test_read_gtf_restricted_returns_core_columns(tmp_path: Path):
         "Strand",
         "Frame",
         "gene_id",
-        "transcript_id",
-        "exon_number",
-        "exon_id",
+        "gene_name",
     ]
     assert result.iloc[0]["Start"] == 12009
-    assert result.iloc[0]["transcript_id"] == "ENST1"
-
-
-@pytest.mark.parametrize(
-    "reader",
-    [read_gtf_restricted, read_gtf_restricted_python],
-    ids=["default", "python"],
-)
-def test_restricted_readers_support_unquoted_values(tmp_path: Path, reader):
-    path = _write_temp_gtf(
-        tmp_path,
-        "# header\n"
-        'chr1\tensembl_havana\texon\t3069203\t3069296\t.\t+\t.\tgene_id "G1"; transcript_id "T1"; exon_number 4; exon_id "EX4";\n',
-    )
-
-    skiprows = find_first_data_line_index(path)
-    result = _normalize_frame_for_compare(reader(path, skiprows=skiprows))
-
-    assert result.iloc[0]["gene_id"] == "G1"
-    assert result.iloc[0]["transcript_id"] == "T1"
-    assert result.iloc[0]["exon_number"] == "4"
-    assert result.iloc[0]["exon_id"] == "EX4"
+    assert result.iloc[0]["gene_name"] == "DDX11L1"
 
 
 def test_read_gtf_python_matches_compiled_reader(tmp_path: Path):
@@ -234,12 +208,7 @@ def test_read_gtf_python_matches_compiled_reader(tmp_path: Path):
     compiled = _normalize_frame_for_compare(compiled)
     python = _normalize_frame_for_compare(python)
 
-    assert list(python["gene_id"]) == list(compiled["gene_id"])
-    assert list(python["gene_name"]) == ["DDX11L1", None]
-    assert list(python["transcript_id"]) == [None, "ENST1"]
-    assert list(python["transcript_name"]) == [None, "DDX11L1-201"]
-    assert list(python["tag"]) == [None, "basic"]
-    assert list(python["Start"]) == list(compiled["Start"])
+    assert_frame_equal(compiled, python, check_dtype=False)
 
 
 def test_read_gtf_python_duplicate_attr_keeps_all_values(tmp_path: Path):
@@ -254,20 +223,3 @@ def test_read_gtf_python_duplicate_attr_keeps_all_values(tmp_path: Path):
 
     assert compiled.iloc[0]["tag"] == "CCDS,basic"
     assert python.iloc[0]["tag"] == "CCDS,basic"
-
-
-def test_read_gtf_restricted_python_matches_compiled(tmp_path: Path):
-    path = _write_temp_gtf(
-        tmp_path,
-        "# header\n"
-        'chr1\thavana\texon\t12010\t12057\t.\t+\t.\tgene_id "ENSG1"; transcript_id "ENST1"; exon_number "1"; exon_id "ENSE1";\n',
-    )
-
-    skiprows = find_first_data_line_index(path)
-    compiled = read_gtf_restricted(path, skiprows=skiprows)
-    python = read_gtf_restricted_python(path, skiprows=skiprows)
-
-    compiled = _normalize_frame_for_compare(compiled)
-    python = _normalize_frame_for_compare(python)
-
-    assert_frame_equal(compiled, python, check_dtype=False)

@@ -23,7 +23,6 @@ GTF_DTYPES = {
     "Frame": "category",
 }
 GTF_NAMES = ["Chromosome", "Source", "Feature", "Start", "End", "Score", "Strand", "Frame", "Attribute"]
-RESTRICTED_ATTRIBUTE_COLUMNS = ["gene_id", "transcript_id", "exon_number", "exon_id"]
 
 
 def find_first_data_line_index(file_path: str | Path) -> int:
@@ -205,22 +204,6 @@ def _parse_attributes_python(
     return to_rows(attribute_column, ignore_bad=ignore_bad)
 
 
-def _parse_restricted_attributes_compiled(attribute_column: pd.Series) -> pd.DataFrame:
-    if _parse_chunk_columns_compiled is None:
-        return _parse_restricted_attributes_python(attribute_column)
-
-    attribute_column = _normalize_attribute_series(attribute_column)
-    columns = _parse_chunk_columns_compiled(attribute_column.to_numpy(copy=False))
-    return pd.DataFrame(
-        {name: columns[name] for name in RESTRICTED_ATTRIBUTE_COLUMNS},
-        index=attribute_column.index,
-    )
-
-
-def _parse_restricted_attributes_python(attribute_column: pd.Series) -> pd.DataFrame:
-    return to_rows(_normalize_attribute_series(attribute_column)).reindex(columns=RESTRICTED_ATTRIBUTE_COLUMNS)
-
-
 def _read_gtf_full(
     path: Path,
     *,
@@ -243,55 +226,24 @@ def _read_gtf_full(
     return _finalize_gtf_frame(pd.concat(dfs, sort=False))
 
 
-def _read_gtf_restricted(
-    path: Path,
-    *,
-    skiprows: int,
-    nrows: int | None,
-    chunksize: int,
-    parse_attributes,
-) -> pd.DataFrame:
-    dfs: list[pd.DataFrame] = []
-    with _open_gtf_reader(path, chunksize=chunksize, skiprows=skiprows, nrows=nrows) as df_iter:
-        for df in df_iter:
-            subset = parse_attributes(df["Attribute"])
-            dfs.append(
-                pd.concat(
-                    [df[["Chromosome", "Source", "Feature", "Start", "End", "Score", "Strand", "Frame"]], subset],
-                    axis=1,
-                    sort=False,
-                )
-            )
-
-    if not dfs:
-        return pd.DataFrame(columns=GTF_NAMES[:-1] + RESTRICTED_ATTRIBUTE_COLUMNS)
-
-    return _finalize_gtf_frame(pd.concat(dfs, sort=False))
-
-
 def read_gtf(
     f: str | Path,
     /,
     *,
     nrows: int | None = None,
-    full: bool = True,
     duplicate_attr: bool = False,
     ignore_bad: bool = False,
 ) -> pd.DataFrame:
     """Read a GTF file using the compiled parser path when available."""
     path = Path(f)
     skiprows = find_first_data_line_index(path)
-
-    if full:
-        return read_gtf_full(
-            path,
-            nrows=nrows,
-            skiprows=skiprows,
-            duplicate_attr=duplicate_attr,
-            ignore_bad=ignore_bad,
-        )
-
-    return read_gtf_restricted(path, skiprows=skiprows, nrows=nrows)
+    return read_gtf_full(
+        path,
+        nrows=nrows,
+        skiprows=skiprows,
+        duplicate_attr=duplicate_attr,
+        ignore_bad=ignore_bad,
+    )
 
 
 def read_gtf_python(
@@ -299,24 +251,19 @@ def read_gtf_python(
     /,
     *,
     nrows: int | None = None,
-    full: bool = True,
     duplicate_attr: bool = False,
     ignore_bad: bool = False,
 ) -> pd.DataFrame:
     """Read a GTF file using the pure Python attribute parser."""
     path = Path(f)
     skiprows = find_first_data_line_index(path)
-
-    if full:
-        return read_gtf_full_python(
-            path,
-            nrows=nrows,
-            skiprows=skiprows,
-            duplicate_attr=duplicate_attr,
-            ignore_bad=ignore_bad,
-        )
-
-    return read_gtf_restricted_python(path, skiprows=skiprows, nrows=nrows)
+    return read_gtf_full_python(
+        path,
+        nrows=nrows,
+        skiprows=skiprows,
+        duplicate_attr=duplicate_attr,
+        ignore_bad=ignore_bad,
+    )
 
 
 def read_gtf_full(
@@ -369,48 +316,6 @@ def read_gtf_full_python(
     )
 
 
-def read_gtf_restricted(
-    f: str | Path,
-    /,
-    skiprows: int = 0,
-    nrows: int | None = None,
-    chunksize: int = int(1e5),
-    *,
-    chunk_size: int | None = None,
-) -> pd.DataFrame:
-    """Read core GTF columns plus a small compiled-parser attribute subset."""
-    path = Path(f)
-    chunksize = _resolve_chunksize(chunksize, chunk_size)
-    return _read_gtf_restricted(
-        path,
-        skiprows=skiprows,
-        nrows=nrows,
-        chunksize=chunksize,
-        parse_attributes=_parse_restricted_attributes_compiled,
-    )
-
-
-def read_gtf_restricted_python(
-    f: str | Path,
-    /,
-    skiprows: int = 0,
-    nrows: int | None = None,
-    chunksize: int = int(1e5),
-    *,
-    chunk_size: int | None = None,
-) -> pd.DataFrame:
-    """Read core GTF columns plus a small pure-Python attribute subset."""
-    path = Path(f)
-    chunksize = _resolve_chunksize(chunksize, chunk_size)
-    return _read_gtf_restricted(
-        path,
-        skiprows=skiprows,
-        nrows=nrows,
-        chunksize=chunksize,
-        parse_attributes=_parse_restricted_attributes_python,
-    )
-
-
 __all__ = [
     "find_first_data_line_index",
     "parse_kv_fields",
@@ -418,8 +323,6 @@ __all__ = [
     "read_gtf_full",
     "read_gtf_full_python",
     "read_gtf_python",
-    "read_gtf_restricted",
-    "read_gtf_restricted_python",
     "to_rows",
     "to_rows_keep_duplicates",
 ]

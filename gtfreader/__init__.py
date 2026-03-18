@@ -14,8 +14,6 @@ from .readers import (
     read_gtf_full,
     read_gtf_full_python,
     read_gtf_python,
-    read_gtf_restricted,
-    read_gtf_restricted_python,
     to_rows,
     to_rows_keep_duplicates,
 )
@@ -28,8 +26,6 @@ __all__ = [
     "read_gtf_full",
     "read_gtf_full_python",
     "read_gtf_python",
-    "read_gtf_restricted",
-    "read_gtf_restricted_python",
     "to_rows",
     "to_rows_keep_duplicates",
 ]
