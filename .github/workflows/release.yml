@@ -53,8 +53,6 @@ jobs:
     name: Publish to PyPI
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
     environment:
       name: pypi
       url: https://pypi.org/p/gtfread
@@ -66,3 +64,7 @@ jobs:
 
       - name: Publish distributions
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: ${{ secrets.PYRANGES_1_PYPI_USER }}
+          password: ${{ secrets.PYRANGES_1_PYPI_PASSWORD }}
+          verbose: true
