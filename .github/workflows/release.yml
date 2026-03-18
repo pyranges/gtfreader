@@ -65,6 +65,6 @@ jobs:
       - name: Publish distributions
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          user: ${{ secrets.PYRANGES_1_PYPI_USER }}
-          password: ${{ secrets.PYRANGES_1_PYPI_PASSWORD }}
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
           verbose: true
