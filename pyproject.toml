@@ -37,3 +37,12 @@ include = ["gtfread*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.cibuildwheel]
+build = "cp39-* cp310-* cp311-* cp312-* cp313-*"
+skip = "pp* *-musllinux_* *-manylinux_i686"
+test-command = "pytest -q {project}/tests"
+test-requires = ["pytest"]
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64"]
