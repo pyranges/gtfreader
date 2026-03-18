@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from gtfread import (
+from gtfreader import (
     find_first_data_line_index,
     parse_kv_fields,
     read_gtf,

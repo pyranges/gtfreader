@@ -1,10 +1,10 @@
-"""Public package API for gtfread."""
+"""Public package API for gtfreader."""
 
 try:
     from ._parser import parse_chunk_columns
 except ImportError:
     def parse_chunk_columns(*_args, **_kwargs):
-        msg = "gtfread.parse_chunk_columns requires the compiled extension. Use read_gtf_python or read_gtf_full_python for the pure Python fallback."
+        msg = "gtfreader.parse_chunk_columns requires the compiled extension. Use read_gtf_python or read_gtf_full_python for the pure Python fallback."
         raise ImportError(msg)
 
 from .readers import (

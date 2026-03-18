@@ -1,6 +1,6 @@
 import pytest
 
-parse_chunk_columns = pytest.importorskip("gtfread._parser").parse_chunk_columns
+parse_chunk_columns = pytest.importorskip("gtfreader._parser").parse_chunk_columns
 
 
 def test_known_and_dynamic_columns_are_parsed():

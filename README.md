@@ -1,6 +1,6 @@
-# gtfread
+# gtfreader
 
-`gtfread` is a small package for parsing and reading GTF files into pandas dataframes.
+`gtfreader` is a small package for parsing and reading GTF files into pandas dataframes.
 
 ## Install
 
@@ -11,7 +11,7 @@ python -m pip install -e .
 ## Usage
 
 ```python
-from gtfread import read_gtf, read_gtf_python
+from gtfreader import read_gtf, read_gtf_python
 
 df = read_gtf("annotation.gtf")
 df_python = read_gtf_python("annotation.gtf")
@@ -24,7 +24,7 @@ If you want to use the compiled low-level parser directly, pass it raw attribute
 ```python
 import pandas as pd
 
-from gtfread import find_first_data_line_index, parse_chunk_columns
+from gtfreader import find_first_data_line_index, parse_chunk_columns
 
 skiprows = find_first_data_line_index("annotation.gtf")
 attribute_lines = pd.read_csv(
