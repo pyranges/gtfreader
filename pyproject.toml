@@ -47,4 +47,4 @@ test-command = "pytest -q {project}/tests"
 test-requires = ["pytest"]
 
 [tool.cibuildwheel.linux]
-archs = ["x86_64", "aarch64"]
+archs = ["x86_64"]
