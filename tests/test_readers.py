@@ -120,6 +120,23 @@ def test_full_readers_support_mixed_attribute_formats(tmp_path: Path, reader):
     assert result.iloc[1]["exon_id"] == "EX2"
 
 
+@pytest.mark.parametrize("reader", [read_gtf, read_gtf_python], ids=["default", "python"])
+def test_readers_ignore_comment_lines_inside_body(tmp_path: Path, reader):
+    path = _write_temp_gtf(
+        tmp_path,
+        "# header\n"
+        'chr1\thavana\tgene\t11869\t14409\t.\t+\t.\tgene_id "G1";\n'
+        "# another comment\n"
+        'chr1\thavana\ttranscript\t11869\t14409\t.\t+\t.\tgene_id "G1"; transcript_id "T1";\n',
+    )
+
+    result = _normalize_frame_for_compare(reader(path))
+
+    assert list(result["Feature"]) == ["gene", "transcript"]
+    assert list(result["gene_id"]) == ["G1", "G1"]
+    assert list(result["transcript_id"]) == [None, "T1"]
+
+
 def test_read_gtf_duplicate_attr_keeps_all_values(tmp_path: Path):
     path = _write_temp_gtf(
         tmp_path,

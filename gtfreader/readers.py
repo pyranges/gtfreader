@@ -162,6 +162,7 @@ def _open_gtf_reader(
         header=None,
         names=GTF_NAMES,
         dtype=GTF_DTYPES,
+        comment="#",
         chunksize=chunksize,
         skiprows=skiprows,
         nrows=nrows,

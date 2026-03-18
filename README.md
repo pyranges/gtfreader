@@ -33,6 +33,7 @@ attribute_lines = pd.read_csv(
     header=None,
     usecols=[8],
     names=["Attribute"],
+    comment="#",
     skiprows=skiprows,
 )["Attribute"].tolist()
 
