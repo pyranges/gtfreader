@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gtfreader"
-version = "0.2.0"
+version = "0.3.0"
 description = "Fast Cython-backed parsing for GTF attribute columns."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -17,7 +17,9 @@ authors = [
 ]
 dependencies = [
     "pandas>=2.0",
+    "numpy",
 ]
+
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Cython",
@@ -27,6 +29,12 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
+
+[project.optional-dependencies]
+# pyarrow parses the nine fixed GTF columns on every core instead of one. It is
+# optional: without it the reader falls back to pandas and returns the same
+# frame, just more slowly.
+fast-io = ["pyarrow"]
 
 [tool.setuptools]
 ext-modules = [
@@ -44,7 +52,7 @@ testpaths = ["tests"]
 build = "cp312-* cp313-*"
 skip = "pp* *-musllinux_* *-manylinux_i686"
 test-command = "pytest -q {project}/tests"
-test-requires = ["pytest"]
+test-requires = ["pytest", "pyarrow"]
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64"]
