@@ -314,3 +314,53 @@ def test_comment_lines_are_dropped_not_parsed(tmp_path, mode):
 def test_start_is_converted_to_zero_based(tmp_path, mode):
     path = write_gtf(tmp_path, DATA_LINE)
     assert read_gtf(path).iloc[0]["Start"] == 11868
+
+
+# --------------------------------------------------------------------------
+# The public switch
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", sorted(CORPUS))
+def test_use_pyarrow_false_matches_the_default(tmp_path, requires_pyarrow, name):
+    """Forcing the pandas parser changes speed, never the frame.
+
+    The parity tests above reach the slow path by patching a private function.
+    This one goes through the documented keyword, so the switch callers
+    actually have is the one under test.
+    """
+    path = write_gtf(tmp_path, CORPUS[name])
+    assert_frame_equal(read_gtf(path), read_gtf(path, use_pyarrow=False))
+    assert_frame_equal(read_gtf_full(path), read_gtf_full(path, use_pyarrow=False))
+
+
+def test_use_pyarrow_false_really_declines(tmp_path, requires_pyarrow):
+    path = write_gtf(tmp_path, CORPUS["bare"])
+    assert readers._read_gtf_arrow(path, skiprows=0, nrows=None, use_pyarrow=False) is None
+    assert readers._read_gtf_arrow(path, skiprows=0, nrows=None) is not None
+
+
+def test_use_pyarrow_true_requires_pyarrow(tmp_path, monkeypatch):
+    """Asking for the fast parse and silently getting the slow one is worse than an error.
+
+    Nothing is broken for anyone who leaves the default alone: without pyarrow,
+    `None` still falls back. Only an explicit `True` insists.
+    """
+    monkeypatch.setattr(readers, "_pyarrow_csv", lambda: None)
+    path = write_gtf(tmp_path, CORPUS["bare"])
+    with pytest.raises(ImportError, match="pyarrow is not installed"):
+        read_gtf(path, use_pyarrow=True)
+    with pytest.raises(ImportError, match="pyarrow is not installed"):
+        read_gtf_full(path, use_pyarrow=True)
+    # The default is unaffected -- this is the install that must keep working.
+    assert_frame_equal(read_gtf(path), read_gtf(path, use_pyarrow=False))
+
+
+def test_use_pyarrow_true_with_nrows_still_reads(tmp_path, requires_pyarrow):
+    """`nrows` declines the fast path for speed, not for lack of pyarrow.
+
+    Raising there would make `use_pyarrow=True` mean two different things
+    depending on an unrelated argument.
+    """
+    path = write_gtf(tmp_path, CORPUS["bare"])
+    assert_frame_equal(read_gtf(path, use_pyarrow=True, nrows=1), read_gtf(path, nrows=1))

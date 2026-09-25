@@ -250,7 +250,7 @@ def _contains_hash(pa, column) -> bool:
     return False
 
 
-def _read_gtf_arrow(path: Path, *, skiprows: int, nrows: int | None):
+def _read_gtf_arrow(path: Path, *, skiprows: int, nrows: int | None, use_pyarrow: bool | None = None):
     """Parse the nine fixed GTF columns with ``pyarrow.csv``, or return None.
 
     pandas' C parser is single-threaded and is about 37% of the cost of reading
@@ -262,8 +262,22 @@ def _read_gtf_arrow(path: Path, *, skiprows: int, nrows: int | None):
     of it would be slower), a file pyarrow cannot parse, or a ``#`` inside a
     field, where the two parsers genuinely disagree.
     """
+    if use_pyarrow is False:
+        return None
     modules = _pyarrow_csv()
-    if modules is None or nrows is not None:
+    if modules is None:
+        if use_pyarrow:
+            msg = (
+                "use_pyarrow=True was requested but pyarrow is not installed. "
+                "Install it with `pip install gtfreader[fast-io]`, or leave "
+                "use_pyarrow unset to fall back to the pandas parser."
+            )
+            raise ImportError(msg)
+        return None
+    if nrows is not None:
+        # `pyarrow.csv` has no row limit, so reading the whole file to discard
+        # most of it would be slower. Not a reason to refuse an explicit
+        # `use_pyarrow=True`: the frame is the same either way.
         return None
     pa, pacsv = modules
 
@@ -406,8 +420,9 @@ def _read_gtf_full(
     duplicate_attr: bool,
     ignore_bad: bool,
     parse_attributes,
+    use_pyarrow: bool | None = None,
 ) -> pd.DataFrame:
-    table = _read_gtf_arrow(path, skiprows=skiprows, nrows=nrows)
+    table = _read_gtf_arrow(path, skiprows=skiprows, nrows=nrows, use_pyarrow=use_pyarrow)
     if table is not None:
         dfs = _frames_from_arrow_table(
             table,
@@ -436,8 +451,19 @@ def read_gtf(
     nrows: int | None = None,
     duplicate_attr: bool = False,
     ignore_bad: bool = False,
+    use_pyarrow: bool | None = None,
 ) -> pd.DataFrame:
-    """Read a GTF file using the compiled parser path when available."""
+    """Read a GTF file using the compiled parser path when available.
+
+    Parameters
+    ----------
+    use_pyarrow : bool | None, optional
+        None (the default) uses pyarrow when it is installed and falls back to
+        pandas otherwise. False forces the pandas parser, which is
+        single-threaded; the frame is identical either way. True requires
+        pyarrow and raises ImportError when it is missing, so a caller who
+        asked for the fast parse is told rather than quietly given the slow one.
+    """
     path = Path(f)
     skiprows = find_first_data_line_index(path)
     return read_gtf_full(
@@ -446,6 +472,7 @@ def read_gtf(
         skiprows=skiprows,
         duplicate_attr=duplicate_attr,
         ignore_bad=ignore_bad,
+        use_pyarrow=use_pyarrow,
     )
 
 
@@ -479,8 +506,19 @@ def read_gtf_full(
     chunk_size: int | None = None,
     duplicate_attr: bool = False,
     ignore_bad: bool = False,
+    use_pyarrow: bool | None = None,
 ) -> pd.DataFrame:
-    """Read a GTF file and expand the attribute column using the compiled parser path."""
+    """Read a GTF file and expand the attribute column using the compiled parser path.
+
+    Parameters
+    ----------
+    use_pyarrow : bool | None, optional
+        None (the default) uses pyarrow when it is installed and falls back to
+        pandas otherwise. False forces the pandas parser, which is
+        single-threaded; the frame is identical either way. True requires
+        pyarrow and raises ImportError when it is missing, so a caller who
+        asked for the fast parse is told rather than quietly given the slow one.
+    """
     path = Path(f)
     chunksize = _resolve_chunksize(chunksize, chunk_size)
     return _read_gtf_full(
@@ -491,6 +529,7 @@ def read_gtf_full(
         duplicate_attr=duplicate_attr,
         ignore_bad=ignore_bad,
         parse_attributes=_parse_attributes_compiled,
+        use_pyarrow=use_pyarrow,
     )
 
 
