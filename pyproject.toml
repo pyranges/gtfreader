@@ -56,3 +56,15 @@ test-requires = ["pytest", "pyarrow"]
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64"]
+# manylinux2014 is glibc 2.17, and neither of this package's dependencies ships
+# a wheel that old any more: pandas is manylinux_2_24+, numpy manylinux_2_27+
+# and pyarrow manylinux_2_28 only. pip therefore fell back to their sdists
+# inside the container and tried to compile numpy, which wants GCC >= 10.3 --
+# newer than manylinux2014 carries. The build itself was fine; it was the test
+# install that could not be satisfied.
+#
+# 2_28 is the oldest image where all three resolve to wheels. It raises the
+# glibc floor for the wheels published here, which costs nothing real: a user
+# too old for this tag could not install pandas either, and pandas is a hard
+# dependency.
+manylinux-x86_64-image = "manylinux_2_28"
