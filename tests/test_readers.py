@@ -223,3 +223,15 @@ def test_read_gtf_python_duplicate_attr_keeps_all_values(tmp_path: Path):
 
     assert compiled.iloc[0]["tag"] == "CCDS,basic"
     assert python.iloc[0]["tag"] == "CCDS,basic"
+
+
+@pytest.mark.parametrize("use_pyarrow", [False, None])
+def test_categorical_columns_keep_their_text(tmp_path: Path, use_pyarrow):
+    path = _write_temp_gtf(
+        tmp_path,
+        '1\tsrc\tgene\t1\t2\t.\t+\t0\tgene_id "G1";\n'
+        '01\tsrc\tgene\t3\t4\t.\t+\t0\tgene_id "G2";\n',
+    )
+    for df in (read_gtf(path, use_pyarrow=use_pyarrow), read_gtf_full(path, use_pyarrow=use_pyarrow)):
+        assert list(df.Chromosome.cat.categories) == ["01", "1"]
+        assert list(df.Frame.cat.categories) == ["0"]

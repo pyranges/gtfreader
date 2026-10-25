@@ -162,7 +162,11 @@ def _apply_categorical_dtypes(df: pd.DataFrame) -> pd.DataFrame:
         values = df[column]
         if isinstance(values.dtype, pd.CategoricalDtype):
             categories = values.cat.categories
-            if not categories.is_monotonic_increasing:
+            if categories.empty:
+                # A column of nothing but missing values: pyarrow gives its
+                # empty dictionary object categories, pandas the string dtype.
+                df[column] = values.cat.set_categories(pd.Index([], dtype=str))
+            elif not categories.is_monotonic_increasing:
                 df[column] = values.cat.reorder_categories(categories.sort_values())
         else:
             df[column] = values.astype("category")
@@ -190,7 +194,10 @@ def _open_gtf_reader(
         sep="\t",
         header=None,
         names=GTF_NAMES,
-        dtype=GTF_DTYPES,
+        # Read as str; `_apply_categorical_dtypes` makes them categorical. Asking
+        # read_csv for "category" lets pandas >= 3.1 infer the categories, so
+        # chromosome 1 would come back as the int 1 and "01" would merge with it.
+        dtype={name: str for name in GTF_DTYPES},
         comment="#",
         chunksize=chunksize,
         skiprows=skiprows,
