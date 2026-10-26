@@ -285,16 +285,22 @@ def test_nrows_agrees_between_readers(tmp_path, monkeypatch, requires_pyarrow):
 
 
 def test_reader_works_without_pyarrow(tmp_path, monkeypatch):
-    """The import failing is the supported state, not an error path."""
+    """The import failing is the supported state, not an error path.
+
+    Only gtfreader's own imports are blocked: pandas >= 3.1 decides once, at
+    import time, that pyarrow is available and then imports it inside read_csv,
+    which a global block would break although no real install could get there.
+    """
     import builtins
 
     real_import = builtins.__import__
 
-    def no_pyarrow(name, *args, **kwargs):
-        if name.startswith("pyarrow"):
+    def no_pyarrow(name, globals=None, *args, **kwargs):  # noqa: A002
+        caller = (globals or {}).get("__name__", "")
+        if name.startswith("pyarrow") and caller.startswith("gtfreader"):
             msg = "No module named 'pyarrow'"
             raise ImportError(msg)
-        return real_import(name, *args, **kwargs)
+        return real_import(name, globals, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", no_pyarrow)
     assert readers._pyarrow_csv() is None
